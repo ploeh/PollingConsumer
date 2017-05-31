@@ -1,0 +1,7 @@
+source https://www.nuget.org/api/v2/
+
+nuget FAKE
+nuget FsCheck.Xunit
+nuget FSharp.Core
+nuget Unquote
+nuget xunit.runner.console

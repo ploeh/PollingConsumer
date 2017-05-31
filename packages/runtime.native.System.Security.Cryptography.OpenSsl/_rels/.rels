@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/runtime.native.System.Security.Cryptography.OpenSsl.nuspec" Id="R4f9c26d6883446f0" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/28b5e8ff1ecc482a80a5325f05ee00ac.psmdcp" Id="Re72f7adb24dd4330" />
+</Relationships>

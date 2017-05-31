@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/xunit.runner.console.nuspec" Id="R25f541782877401b" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/21b94f39c3ec4a98a7d8b64877e22363.psmdcp" Id="R9fc990d5301e42c1" />
+</Relationships>

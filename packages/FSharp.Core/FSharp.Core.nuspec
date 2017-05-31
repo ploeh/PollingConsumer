@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>FSharp.Core</id>
+    <version>4.1.17</version>
+    <title>FSharp.Core for F# 4.1</title>
+    <authors>F# Software Foundation</authors>
+    <owners>F# Software Foundation</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <licenseUrl>https://github.com/fsharp/fsharp/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/fsharp/fsharp</projectUrl>
+    <iconUrl>http://fsharp.org/img/logo.png</iconUrl>
+    <description>FSharp.Core for F# 4.1
+
+      FSharp.Core redistributables from Visual F# 4.1.0
+
+      .NET 2.0
+      .NET 4.0
+      .NET Portable Profile 7 (portable-net45+netcore45)
+      .NET Portable Profile 47 (portable-net45+sl5+netcore45)
+      .NET Portable Profile 78 (portable-net45+netcore45+wp8)
+      .NET Portable Profile 259 (portable-net45+netcore45+wpa81+wp8)
+      .NET Standard 1.6 (netstandard1.6)
+
+      FSharp.Core built by F# Software Foundation
+
+      MonoAndroid, MonoTouch, Xamarin.iOS (portable-net45+monoandroid10+monotouch10+xamarinios10)
+      XamarinMac mobile (xamarinmac20)</description>
+    <summary>FSharp.Core for F# 4.1</summary>
+    <tags>F#, FSharp, FSharp.Core</tags>
+    <dependencies>
+      <group>
+        <dependency id="System.ValueTuple" version="4.3.0" />
+      </group>
+      <group targetFramework=".NETStandard1.6">
+        <dependency id="System.Collections" version="4.0.11" />
+        <dependency id="System.Console" version="4.0.0" />
+        <dependency id="System.Diagnostics.Debug" version="4.0.11" />
+        <dependency id="System.Diagnostics.Tools" version="4.0.1" />
+        <dependency id="System.Globalization" version="4.0.11" />
+        <dependency id="System.IO" version="4.1.0" />
+        <dependency id="System.Linq" version="4.1.0" />
+        <dependency id="System.Linq.Expressions" version="4.1.0" />
+        <dependency id="System.Linq.Queryable" version="4.0.1" />
+        <dependency id="System.Net.Requests" version="4.0.11" />
+        <dependency id="System.Reflection" version="4.1.0" />
+        <dependency id="System.Reflection.Extensions" version="4.0.1" />
+        <dependency id="System.Resources.ResourceManager" version="4.0.1" />
+        <dependency id="System.Runtime" version="4.1.0" />
+        <dependency id="System.Runtime.Extensions" version="4.1.0" />
+        <dependency id="System.Runtime.Numerics" version="4.0.1" />
+        <dependency id="System.Text.RegularExpressions" version="4.1.0" />
+        <dependency id="System.Threading" version="4.0.11" />
+        <dependency id="System.Threading.Tasks" version="4.0.11" />
+        <dependency id="System.Threading.Tasks.Parallel" version="4.0.1" />
+        <dependency id="System.Threading.Thread" version="4.0.0" />
+        <dependency id="System.Threading.ThreadPool" version="4.0.10" />
+        <dependency id="System.Threading.Timer" version="4.0.1" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

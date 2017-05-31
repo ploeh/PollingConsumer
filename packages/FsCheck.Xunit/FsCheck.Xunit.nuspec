@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>FsCheck.Xunit</id>
+    <version>2.9.0</version>
+    <authors>Kurt Schelfthout and contributors</authors>
+    <owners>Kurt Schelfthout and contributors</owners>
+    <licenseUrl>https://github.com/fsharp/FsCheck/blob/master/License.txt</licenseUrl>
+    <projectUrl>https://github.com/fsharp/FsCheck</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/fscheck/FsCheck/master/docs/files/img/logo.png</iconUrl>
+    <description>FsCheck.Xunit integrates FsCheck with xUnit.NET by adding a PropertyAttribute that runs FsCheck tests, similar to xUnit.NET's FactAttribute.
+
+All the options normally available in vanilla FsCheck via configuration can be controlled via the PropertyAttribute.</description>
+    <summary>Integrates FsCheck with xUnit.NET</summary>
+    <releaseNotes>Add a .NET Standard 1.6 build to FsCheck, FsCheck.NUnit and FsCheck.Xunit NuGet packages. (with Enrico Sada)
+Update to latest FSharp.Core 4.1. The last version to support 3.1 or higher is FsCheck 2.8.2.</releaseNotes>
+    <copyright>Copyright 2017</copyright>
+    <tags>test testing random fscheck quickcheck xunit xunit.net</tags>
+    <dependencies>
+      <group>
+        <dependency id="FsCheck" version="2.9.0"></dependency>
+        <dependency id="xunit.extensibility.execution" version="[2.2.0,3.0.0)"></dependency>
+      </group>
+      <group targetFramework=".NETStandard1.6">
+        <dependency id="FsCheck" version="2.9.0" exclude="Build,Analyzers"></dependency>
+        <dependency id="NETStandard.Library" version="1.6.1" exclude="Build,Analyzers"></dependency>
+        <dependency id="FSharp.Core" version="4.1.17" exclude="Build,Analyzers"></dependency>
+        <dependency id="xunit.core" version="2.2.0" exclude="Build,Analyzers"></dependency>
+        <dependency id="xunit.abstractions" version="2.0.1" exclude="Build,Analyzers"></dependency>
+      </group>
+    </dependencies>
+  </metadata>
+</package>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>FsCheck</id>
+    <version>2.9.0</version>
+    <authors>Kurt Schelfthout and contributors</authors>
+    <owners>Kurt Schelfthout and contributors</owners>
+    <licenseUrl>https://github.com/fsharp/FsCheck/blob/master/License.txt</licenseUrl>
+    <projectUrl>https://github.com/fsharp/FsCheck</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/fscheck/FsCheck/master/docs/files/img/logo.png</iconUrl>
+    <description>FsCheck is a tool for testing .NET programs automatically. You provide a specification of the program, in the form of properties which functions, methods or objects should satisfy, and FsCheck then tests that the properties hold in a large number of randomly generated cases. Such properties are actually a testable specification of your program.
+
+Properties are written in F#, C# or VB. FsCheck helps you to define properties, observe the distribution of test data, and define test data generators. Crucially, when a property fails, FsCheck automatically displays a minimal counter example.</description>
+    <summary>FsCheck is a tool for testing .NET programs automatically using randomly generated test cases.</summary>
+    <releaseNotes>Add a .NET Standard 1.6 build to FsCheck, FsCheck.NUnit and FsCheck.Xunit NuGet packages. (with Enrico Sada)
+Update to latest FSharp.Core 4.1. The last version to support 3.1 or higher is FsCheck 2.8.2.</releaseNotes>
+    <copyright>Copyright 2017</copyright>
+    <tags>test testing random fscheck quickcheck</tags>
+    <dependencies>
+      <group>
+        <dependency id="FSharp.Core" version="4.1.0"></dependency>
+      </group>
+      <group targetFramework=".NETStandard1.6">
+        <dependency id="NETStandard.Library" version="1.6.1" exclude="Build,Analyzers"></dependency>
+        <dependency id="FSharp.Core" version="4.1.17" exclude="Build,Analyzers"></dependency>
+      </group>
+    </dependencies>
+  </metadata>
+</package>
