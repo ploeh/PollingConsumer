@@ -62,6 +62,7 @@
     <Content Include="App.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Compile Include="Polling.fs" />
     <Compile Include="Timed.fs" />
     <Compile Include="PollingConsumer.fs" />
     <Compile Include="Statistics.fs" />
