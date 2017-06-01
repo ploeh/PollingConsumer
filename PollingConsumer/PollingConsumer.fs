@@ -30,13 +30,6 @@ let private shouldPoll estimatedDuration stopBefore statistics = polling {
     return now + expectedHandleDuration < stopBefore }
 
 // Transitions
-let transitionFromNoMessage d stopBefore (statistics, _) = polling {
-    let! b = shouldIdle d stopBefore
-    if b then
-        do! Polling.idle d |> Polling.map ignore
-        return ReadyState statistics
-    else return StoppedState statistics }
-
 let transitionFromReady estimatedDuration stopBefore statistics = polling {
     let! b = shouldPoll estimatedDuration stopBefore statistics
     if b then
@@ -44,6 +37,13 @@ let transitionFromReady estimatedDuration stopBefore statistics = polling {
         match pollResult with
         | Some msg, pd -> return ReceivedMessageState (statistics, pd, msg)
         | None, pd -> return NoMessageState (statistics, pd)
+    else return StoppedState statistics }
+
+let transitionFromNoMessage d stopBefore (statistics, _) = polling {
+    let! b = shouldIdle d stopBefore
+    if b then
+        do! Polling.idle d |> Polling.map ignore
+        return ReadyState statistics
     else return StoppedState statistics }
 
 let transitionFromReceived (statistics, pd, msg) = polling {
