@@ -19,7 +19,7 @@ let private r = Random ()
 let poll =
     time (Simulation.pollForMessage r) >> fun (msg, d) -> msg, PollDuration d
 
-let handle = time (Simulation.handle r) >> fun (_, d) -> HandleDuration d
+let handle = time (Simulation.handle r) >> snd >> HandleDuration
 
 let idle (IdleDuration d) =
     let s () =
@@ -28,5 +28,4 @@ let idle (IdleDuration d) =
         |> Async.Sleep
         |> Async.RunSynchronously
     cprintfn ConsoleColor.Yellow "Sleeping"
-    let (), actualDuration = time s ()
-    IdleDuration actualDuration
+    time s () |> snd |> IdleDuration
