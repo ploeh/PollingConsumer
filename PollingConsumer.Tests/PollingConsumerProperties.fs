@@ -5,73 +5,89 @@
 module Ploeh.Samples.PollingConsumerProperties
 
 open System
-open FsCheck
 open FsCheck.Xunit
 open Swensen.Unquote
 open PollingConsumer
 
+type Responses = {
+    CurrentTime : DateTimeOffset
+    Poll : unit option * PollDuration
+    Handle : HandleDuration
+    Idle : IdleDuration }
+
+let createInterpreter responses =
+    let rec interpret = function
+        | Pure x -> x
+        | Free (CurrentTime next) -> responses.CurrentTime |> next |> interpret
+        | Free (Poll next)        -> responses.Poll        |> next |> interpret
+        | Free (Handle (_, next)) -> responses.Handle      |> next |> interpret
+        | Free (Idle (_, next))   -> responses.Idle        |> next |> interpret
+    interpret
+
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromNoMessage returns correct result when it should idle``
-    (nm : NoMessageData)
-    (idleRes : Timed<unit>) =
+    statistics
+    idleDuration
+    responses =
 
-    let shouldIdle _ = true
-    let idle _ = idleRes
+    let shouldIdle = polling { return true }
 
-    let actual : State = transitionFromNoMessage shouldIdle idle nm
+    let actual =
+        transitionFromNoMessage shouldIdle idleDuration (statistics, ())
+        |> createInterpreter responses
 
-    let expected = idleRes |> Untimed.withResult nm.Result |> ReadyState
+    let expected = ReadyState statistics
     expected =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromNoMessage returns correct result when it shouldn't idle``
-    (nm : NoMessageData)
-    (idleRes : Timed<unit>) =
+    statistics
+    idleDuration
+    responses =
 
-    let shouldIdle _ = false
-    let idle _ = idleRes
-
-    let actual = transitionFromNoMessage shouldIdle idle nm
-
-    StoppedState nm.Result =! actual
+    let shouldIdle = polling { return false }
+    let actual =
+        transitionFromNoMessage shouldIdle idleDuration (statistics, ())
+        |> createInterpreter responses
+    StoppedState statistics =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromReady returns correct result when it shouldn't poll``
-    (r : ReadyData)
-    (mh : Timed<MessageHandler option>) =
+    statistics
+    responses =
 
-    let shouldPoll _ = false
-    let poll _ = mh
-
-    let actual : State = transitionFromReady shouldPoll poll r
-    
-    StoppedState r.Result =! actual
+    let shouldPoll _ = polling { return false }
+    let actual =
+        transitionFromReady shouldPoll statistics
+        |> createInterpreter responses    
+    StoppedState statistics =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromReady returns correct result when polling no message``
-    (r : ReadyData)
-    (mh : Timed<unit>) =
+    statistics
+    responses =
     
-    let shouldPoll _ = true
-    let poll _ = mh |> Untimed.withResult None
+    let responses = { responses with Poll = (None, snd responses.Poll) }
+    let shouldPoll _ = polling { return true }
 
-    let actual = transitionFromReady shouldPoll poll r
+    let actual =
+        transitionFromReady shouldPoll statistics
+        |> createInterpreter responses
 
-    let expected = mh |> Untimed.withResult r.Result |> NoMessageState
+    let expected = NoMessageState (statistics, snd responses.Poll)
     expected =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromReady returns correct result when polling a message``
-    (r : ReadyData)
-    (mh : Timed<MessageHandler>) =
+    statistics
+    responses =
 
-    let shouldPoll _ = true
-    let poll _ = mh |> Untimed.withResult (Some mh.Result)
+    let responses = { responses with Poll = (Some (), snd responses.Poll) }
+    let shouldPoll _ = polling { return true }
 
-    let actual = transitionFromReady shouldPoll poll r
+    let actual =
+        transitionFromReady shouldPoll statistics
+        |> createInterpreter responses
 
-    let expected =
-        mh
-        |> Untimed.withResult (r.Result, mh.Result)
-        |> ReceivedMessageState
+    let expected = ReceivedMessageState (statistics, snd responses.Poll, ())
     expected =! actual

@@ -5,31 +5,37 @@
 module Ploeh.Samples.Imp
 
 open System
-open Ploeh.Samples.PollingConsumer
 open Ploeh.Samples.ColorPrint
 
-let shouldIdle idleDuration stopBefore (nm : NoMessageData) =
-    nm.Stopped + idleDuration < stopBefore
+let shouldIdle (IdleDuration d) stopBefore = polling {
+    let! now = Polling.currentTime
+    return now + d < stopBefore }
 
-let idle (idleDuration : TimeSpan) () =
+let time f x =
+    let sw = System.Diagnostics.Stopwatch ()
+    sw.Start ()
+    let msg = f x
+    sw.Stop ()
+    msg, sw.Elapsed
+
+let idle (IdleDuration d) =
     let s () =
-        idleDuration.TotalMilliseconds
+        d.TotalMilliseconds
         |> int
         |> Async.Sleep
         |> Async.RunSynchronously
     cprintfn ConsoleColor.Yellow "Sleeping"
-    Timed.timeOn Clocks.machineClock s ()
+    let (), actualDuration = time s ()
+    IdleDuration actualDuration
 
-let shouldPoll calculateExpectedDuration stopBefore (r : ReadyData) =
-    let durations = r.Result
-    let expectedHandleDuration = calculateExpectedDuration durations
-    r.Stopped + expectedHandleDuration < stopBefore
-
-let poll pollForMessage handle clock () =
-    let p () =
-        match pollForMessage () with
-        | Some msg ->
-            let h () = Timed.timeOn clock (handle >> ignore) msg
-            Some { Handle = h }
-        | None -> None
-    Timed.timeOn clock p ()
+let shouldPoll estimatedDuration stopBefore statistics = polling {
+    let toTotalCycleTimeSpan x =
+        let (PollDuration pd) = x.PollDuration
+        let (HandleDuration hd) = x.HandleDuration
+        pd + hd
+    let expectedHandleDuration =
+        statistics
+        |> List.map toTotalCycleTimeSpan
+        |> Statistics.calculateExpectedDuration estimatedDuration
+    let! now = Polling.currentTime
+    return now + expectedHandleDuration < stopBefore }

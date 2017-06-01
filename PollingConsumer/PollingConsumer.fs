@@ -4,78 +4,49 @@
 
 module Ploeh.Samples.PollingConsumer
 
-open System
-
-// Auxiliary types
-[<CustomEquality; NoComparison>]
-type MessageHandler =
-    { Handle : unit -> Timed<unit> } 
-
-    override this.Equals obj =
-        match obj with
-        | :? MessageHandler as other ->
-            Object.Equals(this.Handle, other.Handle)
-        | _ -> false
-
-    override this.GetHashCode() = (box this.Handle).GetHashCode()
-
-// State data
-type ReadyData = Timed<TimeSpan list>
-type ReceivedMessageData = Timed<TimeSpan list * MessageHandler>
-type NoMessageData = Timed<TimeSpan list>
-type StoppedData = TimeSpan list
-
 // States
-type State =
-| ReadyState of ReadyData
-| ReceivedMessageState of ReceivedMessageData
-| NoMessageState of NoMessageData
-| StoppedState of StoppedData
+type State<'msg> =
+| ReadyState of CycleDuration list
+| ReceivedMessageState of (CycleDuration list * PollDuration * 'msg)
+| NoMessageState of (CycleDuration list * PollDuration)
+| StoppedState of CycleDuration list
 
 // Transitions
-let transitionFromNoMessage shouldIdle idle nm =
-    if shouldIdle nm
-    then idle () |> Untimed.withResult nm.Result |> ReadyState
-    else StoppedState nm.Result
+let transitionFromNoMessage shouldIdle d (statistics, _) = polling {
+    let! b = shouldIdle
+    if b then
+        do! Polling.idle d |> Polling.map ignore
+        return ReadyState statistics
+    else return StoppedState statistics }
 
-let transitionFromReady shouldPoll poll r =
-    if shouldPoll r
-    then 
-        let msg = poll ()
-        match msg.Result with
-        | Some h -> msg |> Untimed.withResult (r.Result, h) |> ReceivedMessageState
-        | None -> msg |> Untimed.withResult r.Result |> NoMessageState
-    else StoppedState r.Result
+let transitionFromReady shouldPoll statistics = polling {
+    let! b = shouldPoll statistics
+    if b then
+        let! pollResult = Polling.poll
+        match pollResult with
+        | Some msg, pd -> return ReceivedMessageState (statistics, pd, msg)
+        | None, pd -> return NoMessageState (statistics, pd)
+    else return StoppedState statistics }
 
-let transitionFromReceived (rm : ReceivedMessageData) =
-    let durations, messageHandler = rm.Result
-    let t = messageHandler.Handle ()
-    let pollDuration = rm.Duration
-    let handleDuration = t.Duration
-    let totalDuration = pollDuration + handleDuration
-    t |> Untimed.withResult (totalDuration :: durations) |> ReadyState
+let transitionFromReceived (statistics, pd, msg) = polling {
+    let! hd = Polling.handle msg
+    return
+        { PollDuration = pd; HandleDuration = hd } :: statistics
+        |> ReadyState }
 
-let transitionFromStopped s = StoppedState s
+let transitionFromStopped s = polling { return StoppedState s }
+
+// 'UI'
+let durations = function
+    | ReadyState statistics                   -> statistics
+    | ReceivedMessageState (statistics, _, _) -> statistics
+    | NoMessageState (statistics, _)          -> statistics
+    | StoppedState statistics                 -> statistics
 
 // State machine
-
-let transition shouldPoll poll shouldIdle idle state =
+let transition shouldPoll shouldIdle idleDuration state =
     match state with
-    | ReadyState r -> transitionFromReady shouldPoll poll r
-    | ReceivedMessageState rm -> transitionFromReceived rm
-    | NoMessageState nm -> transitionFromNoMessage shouldIdle idle nm
+    | ReadyState s -> transitionFromReady shouldPoll s
+    | ReceivedMessageState s -> transitionFromReceived s
+    | NoMessageState s -> transitionFromNoMessage shouldIdle idleDuration s
     | StoppedState s -> transitionFromStopped s
-
-let rec run shouldPoll poll shouldIdle idle state =
-    let ns = transition shouldPoll poll shouldIdle idle state
-    match ns with
-    | StoppedState _ -> ns
-    | _              -> run shouldPoll poll shouldIdle idle ns
-
-let startOn clock = [] |> Timed.capture clock |> ReadyState
-
-let durations = function
-    | ReadyState r -> r.Result
-    | ReceivedMessageState rm -> fst rm.Result
-    | NoMessageState nm -> nm.Result
-    | StoppedState s -> s

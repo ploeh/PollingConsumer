@@ -11,22 +11,23 @@ let limit = TimeSpan.FromMinutes 1.
 let composeDependencies (now : DateTimeOffset) =
     let stopBefore = now + limit
     let estimatedDuration = TimeSpan.FromSeconds 2.
-    let idleDuration = TimeSpan.FromSeconds 5.
-    
-    let calculateExpectedDuration =
-        Statistics.calculateExpectedDuration estimatedDuration
-    let shouldPoll = Imp.shouldPoll calculateExpectedDuration stopBefore
-
+    let idleDuration = TimeSpan.FromSeconds 5. |> IdleDuration
     let r = Random ()
-    let pollForMessage = Simulation.pollForMessage r
-    let handle = Simulation.handle r
-    let poll = Imp.poll pollForMessage handle Clocks.machineClock
+    
+    let shouldPoll = Imp.shouldPoll estimatedDuration stopBefore
+
+    let handle =
+        Imp.time (Simulation.handle r) >> fun (_, d) -> HandleDuration d
+
+    let poll =
+        Imp.time (Simulation.pollForMessage r)
+        >> fun (msg, d) -> msg, PollDuration d
 
     let shouldIdle = Imp.shouldIdle idleDuration stopBefore
 
-    let idle = Imp.idle idleDuration
+    let idle = Imp.idle
 
-    shouldPoll, poll, shouldIdle, idle
+    shouldPoll, poll, shouldIdle, idle, handle, idleDuration
 
 let printOnEntry (timeAtEntry : DateTimeOffset) =
     printfn "Started polling at %s." (timeAtEntry.ToString "T")
@@ -52,18 +53,43 @@ let printOnExit timeAtEntry (durations : TimeSpan list) =
         printfn "Average duration: %s" avg
         printfn "Standard deviation: %s" stdDev)
 
+let rec interpret pollImp handleImp idleImp = function
+    | Pure x -> x
+    | Free (CurrentTime next) ->
+        DateTimeOffset.Now |> next |> interpret pollImp handleImp idleImp
+    | Free (Poll next) ->
+        pollImp () |> next |> interpret pollImp handleImp idleImp
+    | Free (Handle (msg, next)) ->
+        handleImp msg |> next |> interpret pollImp handleImp idleImp
+    | Free (Idle (d, next)) ->
+        idleImp d |> next |> interpret pollImp handleImp idleImp
+
+let rec run shouldPoll shouldIdle idleDuration pollImp handleImp idleImp state =
+    let ns =
+        PollingConsumer.transition shouldPoll shouldIdle idleDuration state
+        |> interpret pollImp handleImp idleImp 
+    match ns with
+    | PollingConsumer.StoppedState _ -> ns
+    | _ -> run shouldPoll shouldIdle idleDuration pollImp handleImp idleImp ns
+
+let toTotalCycleTimeSpan x =
+    let (PollDuration pd) = x.PollDuration
+    let (HandleDuration hd) = x.HandleDuration
+    pd + hd
+
 [<EntryPoint>]
-let main args =
-    
+let main _ =
     let timeAtEntry = DateTimeOffset.Now
 
     printOnEntry timeAtEntry
 
-    let shouldPoll, poll, shouldIdle, idle = composeDependencies timeAtEntry
+    let shouldPoll, poll, shouldIdle, idle, handle, idleDuration =
+        composeDependencies timeAtEntry
     let durations =
-        PollingConsumer.startOn Clocks.machineClock
-        |> PollingConsumer.run shouldPoll poll shouldIdle idle
+        PollingConsumer.ReadyState []
+        |> run shouldPoll shouldIdle idleDuration poll handle idle
         |> PollingConsumer.durations
+        |> List.map toTotalCycleTimeSpan
     
     printOnExit timeAtEntry durations
 
