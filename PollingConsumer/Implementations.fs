@@ -7,10 +7,6 @@ module Ploeh.Samples.Imp
 open System
 open Ploeh.Samples.ColorPrint
 
-let shouldIdle (IdleDuration d) stopBefore = polling {
-    let! now = Polling.currentTime
-    return now + d < stopBefore }
-
 let time f x =
     let sw = System.Diagnostics.Stopwatch ()
     sw.Start ()

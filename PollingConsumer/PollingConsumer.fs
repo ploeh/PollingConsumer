@@ -11,9 +11,14 @@ type State<'msg> =
 | NoMessageState of (CycleDuration list * PollDuration)
 | StoppedState of CycleDuration list
 
+// Support functions
+let private shouldIdle (IdleDuration d) stopBefore = polling {
+    let! now = Polling.currentTime
+    return now + d < stopBefore }
+
 // Transitions
-let transitionFromNoMessage shouldIdle d (statistics, _) = polling {
-    let! b = shouldIdle
+let transitionFromNoMessage d stopBefore (statistics, _) = polling {
+    let! b = shouldIdle d stopBefore
     if b then
         do! Polling.idle d |> Polling.map ignore
         return ReadyState statistics
@@ -44,9 +49,9 @@ let durations = function
     | StoppedState statistics                 -> statistics
 
 // State machine
-let transition shouldPoll shouldIdle idleDuration state =
+let transition shouldPoll idleDuration stopBefore state =
     match state with
     | ReadyState s -> transitionFromReady shouldPoll s
     | ReceivedMessageState s -> transitionFromReceived s
-    | NoMessageState s -> transitionFromNoMessage shouldIdle idleDuration s
+    | NoMessageState s -> transitionFromNoMessage idleDuration stopBefore s
     | StoppedState s -> transitionFromStopped s
