@@ -8,7 +8,7 @@ open Ploeh.Samples.ColorPrint
 
 let limit = TimeSpan.FromMinutes 1.
 
-let composeTransition (now : DateTimeOffset) =
+let composeDependencies (now : DateTimeOffset) =
     let stopBefore = now + limit
     let estimatedDuration = TimeSpan.FromSeconds 2.
     let idleDuration = TimeSpan.FromSeconds 5.
@@ -26,7 +26,7 @@ let composeTransition (now : DateTimeOffset) =
 
     let idle = Imp.idle idleDuration
 
-    PollingConsumer.transition shouldPoll poll shouldIdle idle
+    shouldPoll, poll, shouldIdle, idle
 
 let printOnEntry (timeAtEntry : DateTimeOffset) =
     printfn "Started polling at %s." (timeAtEntry.ToString "T")
@@ -59,10 +59,10 @@ let main args =
 
     printOnEntry timeAtEntry
 
+    let shouldPoll, poll, shouldIdle, idle = composeDependencies timeAtEntry
     let durations =
         PollingConsumer.startOn Clocks.machineClock
-        |> PollingConsumer.unfurl (composeTransition timeAtEntry)
-        |> PollingConsumer.run
+        |> PollingConsumer.run shouldPoll poll shouldIdle idle
         |> PollingConsumer.durations
     
     printOnExit timeAtEntry durations
