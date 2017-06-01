@@ -7,12 +7,19 @@ module Ploeh.Samples.Imp
 open System
 open Ploeh.Samples.ColorPrint
 
-let time f x =
+let private time f x =
     let sw = System.Diagnostics.Stopwatch ()
     sw.Start ()
     let msg = f x
     sw.Stop ()
     msg, sw.Elapsed
+
+let private r = Random ()
+
+let poll =
+    time (Simulation.pollForMessage r) >> fun (msg, d) -> msg, PollDuration d
+
+let handle = time (Simulation.handle r) >> fun (_, d) -> HandleDuration d
 
 let idle (IdleDuration d) =
     let s () =

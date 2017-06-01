@@ -8,23 +8,6 @@ open Ploeh.Samples.ColorPrint
 
 let limit = TimeSpan.FromMinutes 1.
 
-let composeDependencies (now : DateTimeOffset) =
-    let stopBefore = now + limit
-    let estimatedDuration = TimeSpan.FromSeconds 2.
-    let idleDuration = TimeSpan.FromSeconds 5. |> IdleDuration
-    let r = Random ()
-
-    let handle =
-        Imp.time (Simulation.handle r) >> fun (_, d) -> HandleDuration d
-
-    let poll =
-        Imp.time (Simulation.pollForMessage r)
-        >> fun (msg, d) -> msg, PollDuration d
-
-    let idle = Imp.idle
-
-    poll, idle, handle, estimatedDuration, idleDuration, stopBefore
-
 let printOnEntry (timeAtEntry : DateTimeOffset) =
     printfn "Started polling at %s." (timeAtEntry.ToString "T")
     printfn ""
@@ -49,24 +32,20 @@ let printOnExit timeAtEntry (durations : TimeSpan list) =
         printfn "Average duration: %s" avg
         printfn "Standard deviation: %s" stdDev)
 
-let rec interpret pollImp handleImp idleImp = function
+let rec interpret = function
     | Pure x -> x
-    | Free (CurrentTime next) ->
-        DateTimeOffset.Now |> next |> interpret pollImp handleImp idleImp
-    | Free (Poll next) ->
-        pollImp () |> next |> interpret pollImp handleImp idleImp
-    | Free (Handle (msg, next)) ->
-        handleImp msg |> next |> interpret pollImp handleImp idleImp
-    | Free (Idle (d, next)) ->
-        idleImp d |> next |> interpret pollImp handleImp idleImp
+    | Free (CurrentTime next)   -> DateTimeOffset.Now |> next |> interpret
+    | Free (Poll next)          -> Imp.poll ()        |> next |> interpret
+    | Free (Handle (msg, next)) -> Imp.handle msg     |> next |> interpret
+    | Free (Idle (d, next))     -> Imp.idle d         |> next |> interpret
 
-let rec run estimatedDuration idleDuration stopBefore pollImp handleImp idleImp state =
+let rec run estimatedDuration idleDuration stopBefore s =
     let ns =
-        PollingConsumer.transition estimatedDuration idleDuration stopBefore state
-        |> interpret pollImp handleImp idleImp 
+        PollingConsumer.transition estimatedDuration idleDuration stopBefore s
+        |> interpret
     match ns with
     | PollingConsumer.StoppedState _ -> ns
-    | _ -> run estimatedDuration idleDuration stopBefore pollImp handleImp idleImp ns
+    | _ -> run estimatedDuration idleDuration stopBefore ns
 
 [<EntryPoint>]
 let main _ =
@@ -74,11 +53,13 @@ let main _ =
 
     printOnEntry timeAtEntry
 
-    let poll, idle, handle, estimatedDuration, idleDuration, stopBefore =
-        composeDependencies timeAtEntry
+    let stopBefore = timeAtEntry + limit
+    let estimatedDuration = TimeSpan.FromSeconds 2.
+    let idleDuration = TimeSpan.FromSeconds 5. |> IdleDuration
+
     let durations =
         PollingConsumer.ReadyState []
-        |> run estimatedDuration idleDuration stopBefore poll handle idle
+        |> run estimatedDuration idleDuration stopBefore
         |> PollingConsumer.durations
         |> List.map PollingConsumer.toTotalCycleTimeSpan
     

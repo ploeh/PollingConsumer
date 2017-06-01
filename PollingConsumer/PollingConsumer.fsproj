@@ -67,8 +67,8 @@
     <Compile Include="Statistics.fs" />
     <Compile Include="PollingConsumer.fs" />
     <Compile Include="ColorPrint.fs" />
-    <Compile Include="Implementations.fs" />
     <Compile Include="Simulation.fs" />
+    <Compile Include="Implementations.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
