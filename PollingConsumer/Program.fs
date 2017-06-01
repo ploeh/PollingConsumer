@@ -13,8 +13,6 @@ let composeDependencies (now : DateTimeOffset) =
     let estimatedDuration = TimeSpan.FromSeconds 2.
     let idleDuration = TimeSpan.FromSeconds 5. |> IdleDuration
     let r = Random ()
-    
-    let shouldPoll = Imp.shouldPoll estimatedDuration stopBefore
 
     let handle =
         Imp.time (Simulation.handle r) >> fun (_, d) -> HandleDuration d
@@ -25,7 +23,7 @@ let composeDependencies (now : DateTimeOffset) =
 
     let idle = Imp.idle
 
-    shouldPoll, poll, idle, handle, idleDuration, stopBefore
+    poll, idle, handle, estimatedDuration, idleDuration, stopBefore
 
 let printOnEntry (timeAtEntry : DateTimeOffset) =
     printfn "Started polling at %s." (timeAtEntry.ToString "T")
@@ -62,18 +60,13 @@ let rec interpret pollImp handleImp idleImp = function
     | Free (Idle (d, next)) ->
         idleImp d |> next |> interpret pollImp handleImp idleImp
 
-let rec run shouldPoll idleDuration stopBefore pollImp handleImp idleImp state =
+let rec run estimatedDuration idleDuration stopBefore pollImp handleImp idleImp state =
     let ns =
-        PollingConsumer.transition shouldPoll idleDuration stopBefore state
+        PollingConsumer.transition estimatedDuration idleDuration stopBefore state
         |> interpret pollImp handleImp idleImp 
     match ns with
     | PollingConsumer.StoppedState _ -> ns
-    | _ -> run shouldPoll idleDuration stopBefore pollImp handleImp idleImp ns
-
-let toTotalCycleTimeSpan x =
-    let (PollDuration pd) = x.PollDuration
-    let (HandleDuration hd) = x.HandleDuration
-    pd + hd
+    | _ -> run estimatedDuration idleDuration stopBefore pollImp handleImp idleImp ns
 
 [<EntryPoint>]
 let main _ =
@@ -81,13 +74,13 @@ let main _ =
 
     printOnEntry timeAtEntry
 
-    let shouldPoll, poll, idle, handle, idleDuration, stopBefore =
+    let poll, idle, handle, estimatedDuration, idleDuration, stopBefore =
         composeDependencies timeAtEntry
     let durations =
         PollingConsumer.ReadyState []
-        |> run shouldPoll idleDuration stopBefore poll handle idle
+        |> run estimatedDuration idleDuration stopBefore poll handle idle
         |> PollingConsumer.durations
-        |> List.map toTotalCycleTimeSpan
+        |> List.map PollingConsumer.toTotalCycleTimeSpan
     
     printOnExit timeAtEntry durations
 

@@ -23,15 +23,3 @@ let idle (IdleDuration d) =
     cprintfn ConsoleColor.Yellow "Sleeping"
     let (), actualDuration = time s ()
     IdleDuration actualDuration
-
-let shouldPoll estimatedDuration stopBefore statistics = polling {
-    let toTotalCycleTimeSpan x =
-        let (PollDuration pd) = x.PollDuration
-        let (HandleDuration hd) = x.HandleDuration
-        pd + hd
-    let expectedHandleDuration =
-        statistics
-        |> List.map toTotalCycleTimeSpan
-        |> Statistics.calculateExpectedDuration estimatedDuration
-    let! now = Polling.currentTime
-    return now + expectedHandleDuration < stopBefore }

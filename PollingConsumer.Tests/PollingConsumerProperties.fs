@@ -32,11 +32,15 @@ module Gen =
     let moderateTimeSpan =
         Arb.generate |> Gen.map (abs >> ((+) 1) >> int64 >> TimeSpan.FromTicks)
 
+    let cycleDuration = gen {
+        let! (pd, hd) = Gen.two moderateTimeSpan
+        return {    PollDuration = PollDuration pd
+                    HandleDuration = HandleDuration hd } }
+
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromNoMessage returns correct result when it has time to idle``
     statistics
     responses =
-
     Gen.moderateTimeSpan
     |> Gen.two
     |> Arb.fromGen
@@ -55,7 +59,6 @@ let ``transitionFromNoMessage returns correct result when it has time to idle``
 let ``transitionFromNoMessage returns correct result when it has no time to idle``
     statistics
     responses =
-
     Gen.moderateTimeSpan
     |> Gen.two
     |> Arb.fromGen
@@ -69,42 +72,65 @@ let ``transitionFromNoMessage returns correct result when it has no time to idle
         StoppedState statistics =! actual
 
 [<Property(QuietOnSuccess = true)>]
-let ``transitionFromReady returns correct result when it shouldn't poll``
-    statistics
+let ``transitionFromReady returns correct result when it has no time to cycle``
     responses =
+    fun x y -> x, y
+    <!> Gen.listOf Gen.cycleDuration
+    <*> Gen.two Gen.moderateTimeSpan
+    |>  Arb.fromGen
+    |>  Prop.forAll <| fun (statistics, (estimatedDuration, x)) ->
+        let expectedDuration =
+            statistics
+            |> List.map PollingConsumer.toTotalCycleTimeSpan
+            |> Statistics.calculateExpectedDuration estimatedDuration
+        let stopBefore = responses.CurrentTime + expectedDuration - x
 
-    let shouldPoll _ = polling { return false }
-    let actual =
-        transitionFromReady shouldPoll statistics
-        |> createInterpreter responses    
-    StoppedState statistics =! actual
+        let actual =
+            transitionFromReady estimatedDuration stopBefore statistics
+            |> createInterpreter responses    
+
+        StoppedState statistics =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromReady returns correct result when polling no message``
-    statistics
-    responses =
-    
-    let responses = { responses with Poll = (None, snd responses.Poll) }
-    let shouldPoll _ = polling { return true }
+    responses =    
+    fun x y -> x, y
+    <!> Gen.listOf Gen.cycleDuration
+    <*> Gen.two Gen.moderateTimeSpan
+    |>  Arb.fromGen
+    |>  Prop.forAll <| fun (statistics, (estimatedDuration, margin)) ->
+        let responses = { responses with Poll = (None, snd responses.Poll) }
+        let expectedDuration =
+            statistics
+            |> List.map PollingConsumer.toTotalCycleTimeSpan
+            |> Statistics.calculateExpectedDuration estimatedDuration
+        let stopBefore = responses.CurrentTime + expectedDuration + margin
 
-    let actual =
-        transitionFromReady shouldPoll statistics
-        |> createInterpreter responses
+        let actual =
+            transitionFromReady estimatedDuration stopBefore statistics
+            |> createInterpreter responses
 
-    let expected = NoMessageState (statistics, snd responses.Poll)
-    expected =! actual
+        let expected = NoMessageState (statistics, snd responses.Poll)
+        expected =! actual
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromReady returns correct result when polling a message``
-    statistics
     responses =
+    fun x y -> x, y
+    <!> Gen.listOf Gen.cycleDuration
+    <*> Gen.two Gen.moderateTimeSpan
+    |>  Arb.fromGen
+    |>  Prop.forAll <| fun (statistics, (estimatedDuration, margin)) ->
+        let responses = { responses with Poll = (Some (), snd responses.Poll) }
+        let expectedDuration =
+            statistics
+            |> List.map PollingConsumer.toTotalCycleTimeSpan
+            |> Statistics.calculateExpectedDuration estimatedDuration
+        let stopBefore = responses.CurrentTime + expectedDuration + margin
 
-    let responses = { responses with Poll = (Some (), snd responses.Poll) }
-    let shouldPoll _ = polling { return true }
+        let actual =
+            transitionFromReady estimatedDuration stopBefore statistics
+            |> createInterpreter responses
 
-    let actual =
-        transitionFromReady shouldPoll statistics
-        |> createInterpreter responses
-
-    let expected = ReceivedMessageState (statistics, snd responses.Poll, ())
-    expected =! actual
+        let expected = ReceivedMessageState (statistics, snd responses.Poll, ())
+        expected =! actual

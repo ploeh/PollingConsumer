@@ -12,9 +12,22 @@ type State<'msg> =
 | StoppedState of CycleDuration list
 
 // Support functions
+let toTotalCycleTimeSpan x =
+    let (PollDuration pd) = x.PollDuration
+    let (HandleDuration hd) = x.HandleDuration
+    pd + hd
+
 let private shouldIdle (IdleDuration d) stopBefore = polling {
     let! now = Polling.currentTime
     return now + d < stopBefore }
+
+let private shouldPoll estimatedDuration stopBefore statistics = polling {
+    let expectedHandleDuration =
+        statistics
+        |> List.map toTotalCycleTimeSpan
+        |> Statistics.calculateExpectedDuration estimatedDuration
+    let! now = Polling.currentTime
+    return now + expectedHandleDuration < stopBefore }
 
 // Transitions
 let transitionFromNoMessage d stopBefore (statistics, _) = polling {
@@ -24,8 +37,8 @@ let transitionFromNoMessage d stopBefore (statistics, _) = polling {
         return ReadyState statistics
     else return StoppedState statistics }
 
-let transitionFromReady shouldPoll statistics = polling {
-    let! b = shouldPoll statistics
+let transitionFromReady estimatedDuration stopBefore statistics = polling {
+    let! b = shouldPoll estimatedDuration stopBefore statistics
     if b then
         let! pollResult = Polling.poll
         match pollResult with
@@ -49,9 +62,8 @@ let durations = function
     | StoppedState statistics                 -> statistics
 
 // State machine
-let transition shouldPoll idleDuration stopBefore state =
-    match state with
-    | ReadyState s -> transitionFromReady shouldPoll s
+let transition estimatedDuration idleDuration stopBefore = function
+    | ReadyState s -> transitionFromReady estimatedDuration stopBefore s
     | ReceivedMessageState s -> transitionFromReceived s
     | NoMessageState s -> transitionFromNoMessage idleDuration stopBefore s
     | StoppedState s -> transitionFromStopped s

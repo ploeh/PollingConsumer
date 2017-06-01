@@ -64,8 +64,8 @@
     </Content>
     <Compile Include="Polling.fs" />
     <Compile Include="Timed.fs" />
-    <Compile Include="PollingConsumer.fs" />
     <Compile Include="Statistics.fs" />
+    <Compile Include="PollingConsumer.fs" />
     <Compile Include="ColorPrint.fs" />
     <Compile Include="Implementations.fs" />
     <Compile Include="Simulation.fs" />
