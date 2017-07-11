@@ -34,8 +34,8 @@ module Gen =
 
     let cycleDuration = gen {
         let! (pd, hd) = Gen.two moderateTimeSpan
-        return {    PollDuration = PollDuration pd
-                    HandleDuration = HandleDuration hd } }
+        return { PollDuration = PollDuration pd
+                 HandleDuration = HandleDuration hd } }
 
 [<Property(QuietOnSuccess = true)>]
 let ``transitionFromNoMessage returns correct result when it has time to idle``
