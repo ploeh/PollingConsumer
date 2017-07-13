@@ -5,8 +5,8 @@
 module Ploeh.Samples.PollingConsumerProperties
 
 open System
-open FsCheck
-open FsCheck.Xunit
+open Hedgehog
+open Xunit
 open Swensen.Unquote
 open PollingConsumer
 
@@ -30,21 +30,39 @@ module Gen =
     // integers to stay within a reasonable range. The addition of 1 prevents
     // the generation of zero TimeSpans.
     let moderateTimeSpan =
-        Arb.generate |> Gen.map (abs >> ((+) 1) >> int64 >> TimeSpan.FromTicks)
+        Range.constantBounded ()
+        |> Gen.int
+        |> Gen.map (abs >> ((+) 1) >> int64 >> TimeSpan.FromTicks)
 
     let cycleDuration = gen {
-        let! (pd, hd) = Gen.two moderateTimeSpan
-        return {    PollDuration = PollDuration pd
-                    HandleDuration = HandleDuration hd } }
+        let! (pd, hd) = Gen.tuple moderateTimeSpan
+        return { PollDuration = PollDuration pd
+                 HandleDuration = HandleDuration hd } }
 
-[<Property(QuietOnSuccess = true)>]
-let ``transitionFromNoMessage returns correct result when it has time to idle``
-    statistics
-    responses =
-    Gen.moderateTimeSpan
-    |> Gen.two
-    |> Arb.fromGen
-    |> Prop.forAll <| fun (idleDuration, margin) ->
+    let responses =
+        let timeSpan =
+            Range.constantBounded ()
+            |> Gen.int
+            |> Gen.map (int64 >> TimeSpan.FromTicks)
+
+        gen {
+            let! currentTime = Gen.dateTime |> Gen.map DateTimeOffset
+            let! poll = timeSpan |> Gen.map PollDuration |> Gen.zip (Gen.constant <| Some ())
+            let! handle = timeSpan |> Gen.map HandleDuration
+            let! idle = timeSpan |> Gen.map IdleDuration
+
+            return { CurrentTime = currentTime
+                     Poll = poll
+                     Handle = handle
+                     Idle = idle } }
+
+[<Fact>]
+let ``transitionFromNoMessage returns correct result when it has time to idle`` () =
+    Property.check <| property {
+        let! statistics = Gen.list (Range.linear 0 100) Gen.cycleDuration
+        let! responses = Gen.responses
+        let! idleDuration = Gen.moderateTimeSpan
+        let! margin = Gen.moderateTimeSpan
         let stopBefore = responses.CurrentTime + idleDuration + margin
 
         let actual =
@@ -53,32 +71,32 @@ let ``transitionFromNoMessage returns correct result when it has time to idle``
             |> createInterpreter responses
 
         let expected = ReadyState statistics
-        expected =! actual
+        return expected = actual
+    }
 
-[<Property(QuietOnSuccess = true)>]
-let ``transitionFromNoMessage returns correct result when it has no time to idle``
-    statistics
-    responses =
-    Gen.moderateTimeSpan
-    |> Gen.two
-    |> Arb.fromGen
-    |> Prop.forAll <| fun (idleDuration, x) ->
+[<Fact>]
+let ``transitionFromNoMessage returns correct result when it has no time to idle`` () =
+    Property.check <| property {
+        let! statistics = Gen.list (Range.linear 0 100) Gen.cycleDuration
+        let! responses = Gen.responses
+        let! idleDuration = Gen.moderateTimeSpan
+        let! x = Gen.moderateTimeSpan
         let stopBefore = responses.CurrentTime + idleDuration - x
-        
+
         let actual =
             transitionFromNoMessage
                 (IdleDuration idleDuration) stopBefore (statistics, ())
             |> createInterpreter responses
-        StoppedState statistics =! actual
+        return StoppedState statistics = actual
+    }
 
-[<Property(QuietOnSuccess = true)>]
-let ``transitionFromReady returns correct result when it has no time to cycle``
-    responses =
-    fun x y -> x, y
-    <!> Gen.listOf Gen.cycleDuration
-    <*> Gen.two Gen.moderateTimeSpan
-    |>  Arb.fromGen
-    |>  Prop.forAll <| fun (statistics, (estimatedDuration, x)) ->
+[<Fact>]
+let ``transitionFromReady returns correct result when it has no time to cycle`` () =
+    Property.check <| property {
+        let! statistics = Gen.list (Range.linear 0 100) Gen.cycleDuration
+        let! responses = Gen.responses
+        let! estimatedDuration = Gen.moderateTimeSpan
+        let! x = Gen.moderateTimeSpan
         let expectedDuration =
             statistics
             |> List.map PollingConsumer.toTotalCycleTimeSpan
@@ -89,16 +107,16 @@ let ``transitionFromReady returns correct result when it has no time to cycle``
             transitionFromReady estimatedDuration stopBefore statistics
             |> createInterpreter responses    
 
-        StoppedState statistics =! actual
+        return StoppedState statistics = actual
+    }
 
-[<Property(QuietOnSuccess = true)>]
-let ``transitionFromReady returns correct result when polling no message``
-    responses =    
-    fun x y -> x, y
-    <!> Gen.listOf Gen.cycleDuration
-    <*> Gen.two Gen.moderateTimeSpan
-    |>  Arb.fromGen
-    |>  Prop.forAll <| fun (statistics, (estimatedDuration, margin)) ->
+[<Fact>]
+let ``transitionFromReady returns correct result when polling no message`` () =
+    Property.check <| property {
+        let! statistics = Gen.list (Range.linear 0 100) Gen.cycleDuration
+        let! responses = Gen.responses
+        let! estimatedDuration = Gen.moderateTimeSpan
+        let! margin = Gen.moderateTimeSpan
         let responses = { responses with Poll = (None, snd responses.Poll) }
         let expectedDuration =
             statistics
@@ -111,16 +129,16 @@ let ``transitionFromReady returns correct result when polling no message``
             |> createInterpreter responses
 
         let expected = NoMessageState (statistics, snd responses.Poll)
-        expected =! actual
+        return expected = actual
+    }
 
-[<Property(QuietOnSuccess = true)>]
-let ``transitionFromReady returns correct result when polling a message``
-    responses =
-    fun x y -> x, y
-    <!> Gen.listOf Gen.cycleDuration
-    <*> Gen.two Gen.moderateTimeSpan
-    |>  Arb.fromGen
-    |>  Prop.forAll <| fun (statistics, (estimatedDuration, margin)) ->
+[<Fact>]
+let ``transitionFromReady returns correct result when polling a message`` () =
+    Property.check <| property {
+        let! statistics = Gen.list (Range.linear 0 100) Gen.cycleDuration
+        let! responses = Gen.responses
+        let! estimatedDuration = Gen.moderateTimeSpan
+        let! margin = Gen.moderateTimeSpan
         let responses = { responses with Poll = (Some (), snd responses.Poll) }
         let expectedDuration =
             statistics
@@ -133,4 +151,5 @@ let ``transitionFromReady returns correct result when polling a message``
             |> createInterpreter responses
 
         let expected = ReceivedMessageState (statistics, snd responses.Poll, ())
-        expected =! actual
+        return expected = actual
+    }
